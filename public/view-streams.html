@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Streams</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation will be loaded dynamically -->
+    <div id="sidebar"></div>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Stream Management</h1>
+            <div class="header-actions">
+                <a href="/add-stream.html" class="btn">
+                    <i class="fas fa-plus"></i>
+                    New Stream
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <table class="stream-table">
+                <thead>
+                    <tr>
+                        <th>Channel</th>
+                        <th>Stream URL</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="streamList">
+                    <!-- Stream data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // Load navigation
+        fetch('/partials/sidebar.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('sidebar').innerHTML = html);
+
+        // Stream loading logic
+        async function loadStreams() {
+            try {
+                const response = await fetch('/api/streams', {
+                    credentials: 'include'
+                });
+                
+                const streams = await response.json();
+                const tbody = document.getElementById('streamList');
+                
+                tbody.innerHTML = streams.map(stream => `
+                    <tr>
+                        <td>${stream.name}</td>
+                        <td class="url-cell">${stream.url}</td>
+                        <td>
+                            <button class="action-btn" onclick="location.href='/edit-stream.html?id=${stream.id}'">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn" onclick="deleteStream('${stream.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                alert('Error loading streams: ' + error.message);
+            }
+        }
+
+        async function deleteStream(id) {
+            if (!confirm('Are you sure you want to delete this stream?')) return;
+            
+            try {
+                const response = await fetch(`/api/streams/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) throw new Error('Delete failed');
+                loadStreams();
+            } catch (error) {
+                alert('Delete error: ' + error.message);
+            }
+        }
+
+        // Initial load
+        loadStreams();
+    </script>
+</body>
+</html>

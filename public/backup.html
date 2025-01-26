@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup System</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <!-- Same sidebar as panel.html -->
+    </nav>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Backup & Restore</h1>
+            <a href="panel.html" class="btn">
+                <i class="fas fa-arrow-left"></i>
+                Back
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="backup-section">
+                <h2>Backup</h2>
+                <button class="btn" id="downloadBackup">
+                    <i class="fas fa-file-export"></i>
+                    Download Backup
+                </button>
+                <p class="info-text">Download a full backup of all streams</p>
+            </div>
+
+            <div class="restore-section">
+                <h2>Restore</h2>
+                <input type="file" id="backupFile" accept=".json" hidden>
+                <button class="btn" onclick="document.getElementById('backupFile').click()">
+                    <i class="fas fa-file-import"></i>
+                    Choose Backup File
+                </button>
+                <p class="info-text">Select a valid backup JSON file to restore</p>
+                <div id="restoreStatus"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('downloadBackup').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/backup');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `iptv-backup-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                alert('Backup download failed: ' + error.message);
+            }
+        });
+
+        document.getElementById('backupFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const backupData = JSON.parse(event.target.result);
+                    const response = await fetch('/api/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(backupData)
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'Restore failed');
+
+                    document.getElementById('restoreStatus').innerHTML = `
+                        <div class="success-message">
+                            Successfully restored ${result.restored} streams
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        window.location.href = 'view-streams.html';
+                    }, 2000);
+                } catch (error) {
+                    document.getElementById('restoreStatus').innerHTML = `
+                        <div class="error-message">
+                            ${error.message}
+                        </div>
+                    `;
+                }
+            };
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>

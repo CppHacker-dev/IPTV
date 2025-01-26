@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate M3U</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <!-- Same sidebar as panel.html -->
+    </nav>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Generate M3U Playlist</h1>
+            <a href="panel.html" class="btn">
+                <i class="fas fa-arrow-left"></i>
+                Back
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="m3u-options">
+                <button class="btn" id="generateM3U">
+                    <i class="fas fa-download"></i>
+                    Download M3U File
+                </button>
+                <div class="info-text">
+                    <p>Your playlist will contain all current streams in M3U format</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('generateM3U').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/streams');
+                const streams = await response.json();
+                
+                let m3uContent = '#EXTM3U\n';
+                streams.forEach(stream => {
+                    m3uContent += `#EXTINF:-1,${stream.name}\n${stream.url}\n`;
+                });
+
+                const blob = new Blob([m3uContent], { type: 'application/x-mpegurl' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'iptv-playlist.m3u';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                alert('Error generating M3U file: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

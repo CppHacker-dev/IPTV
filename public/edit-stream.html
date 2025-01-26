@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Stream</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-broadcast-tower"></i>
+            <span class="logo-text">X-IPTV</span>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="panel.html" class="nav-link"><i class="fas fa-home"></i><span>Dashboard</span></a></li>
+            <li><a href="add-stream.html" class="nav-link"><i class="fas fa-plus"></i><span>Add Stream</span></a></li>
+            <li><a href="view-streams.html" class="nav-link"><i class="fas fa-list"></i><span>Streams</span></a></li>
+            <li><a href="backup.html" class="nav-link"><i class="fas fa-database"></i><span>Backup</span></a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Edit Stream</h1>
+            <a href="view-streams.html" class="btn">
+                <i class="fas fa-arrow-left"></i>
+                Back to List
+            </a>
+        </div>
+
+        <div class="card">
+            <form id="editForm">
+                <div class="input-group">
+                    <label class="input-label">Stream Name</label>
+                    <input type="text" class="input-field" id="streamName" required>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Stream URL</label>
+                    <input type="url" class="input-field" id="streamUrl" required>
+                </div>
+
+                <button type="submit" class="btn">
+                    <i class="fas fa-save"></i>
+                    Update Stream
+                </button>
+                <p id="errorMessage" class="error-message"></p>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamId = urlParams.get('id');
+
+        async function loadStream() {
+            if (!streamId) {
+                showError('Invalid stream ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/streams/${streamId}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Stream not found');
+                }
+
+                const stream = await response.json();
+                document.getElementById('streamName').value = stream.name;
+                document.getElementById('streamUrl').value = stream.url;
+            } catch (error) {
+                showError(error.message);
+                setTimeout(() => window.location.href = 'view-streams.html', 2000);
+            }
+        }
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const updatedStream = {
+                name: document.getElementById('streamName').value,
+                url: document.getElementById('streamUrl').value
+            };
+
+            try {
+                const response = await fetch(`/api/streams/${streamId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(updatedStream)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Update failed');
+                }
+
+                window.location.href = 'view-streams.html';
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            setTimeout(() => errorElement.textContent = '', 3000);
+        }
+
+        loadStream();
+    </script>
+</body>
+</html>

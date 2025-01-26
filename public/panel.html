@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - X-IPTV</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Load Sidebar -->
+    <div id="sidebarLoader">
+        <script>
+            fetch('/partials/sidebar.html')
+                .then(res => res.text())
+                .then(html => {
+                    document.getElementById('sidebarLoader').innerHTML = html;
+                    // Set active link
+                    const currentPage = location.pathname.split('/').pop();
+                    document.querySelectorAll('.nav-link').forEach(link => {
+                        if (link.getAttribute('href').includes(currentPage)) {
+                            link.classList.add('active');
+                        }
+                    });
+                });
+        </script>
+    </div>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Dashboard Overview</h1>
+            <div class="header-actions">
+                <button class="btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-satellite-dish"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value" id="totalStreams">0</div>
+                    <div class="stat-label">Total Streams</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value" id="activeUsers">0</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value" id="streamsToday">0</div>
+                    <div class="stat-label">Streams Added Today</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-tags"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value" id="totalCategories">0</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="card">
+                <h2>Streams Overview</h2>
+                <canvas id="streamsChart"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>Recent Activity</h2>
+                <div class="activity-list" id="recentActivity">
+                    <!-- Activity items will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>System Status</h2>
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-label">Server Uptime</div>
+                    <div class="status-value" id="serverUptime">00:00:00</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">CPU Usage</div>
+                    <div class="status-value" id="cpuUsage">0%</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Memory Usage</div>
+                    <div class="status-value" id="memoryUsage">0 MB</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let streamsChart = null;
+
+        async function loadDashboardData() {
+            try {
+                const [streamsRes, statsRes, activityRes, systemRes] = await Promise.all([
+                    fetch('/api/streams', { credentials: 'include' }),
+                    fetch('/api/stats', { credentials: 'include' }),
+                    fetch('/api/activity', { credentials: 'include' }),
+                    fetch('/api/system', { credentials: 'include' })
+                ]);
+
+                // Update quick stats
+                const stats = await statsRes.json();
+                document.getElementById('totalStreams').textContent = stats.totalStreams;
+                document.getElementById('activeUsers').textContent = stats.activeUsers;
+                document.getElementById('streamsToday').textContent = stats.streamsToday;
+                document.getElementById('totalCategories').textContent = stats.totalCategories;
+
+                // Update system status
+                const system = await systemRes.json();
+                document.getElementById('serverUptime').textContent = system.uptime;
+                document.getElementById('cpuUsage').textContent = system.cpuUsage;
+                document.getElementById('memoryUsage').textContent = system.memoryUsage;
+
+                // Update recent activity
+                const activity = await activityRes.json();
+                const activityList = document.getElementById('recentActivity');
+                activityList.innerHTML = activity.map(item => `
+                    <div class="activity-item">
+                        <i class="fas fa-${item.icon}"></i>
+                        <div class="activity-text">
+                            <div class="activity-title">${item.title}</div>
+                            <div class="activity-time">${item.time}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Update streams chart
+                const streams = await streamsRes.json();
+                updateStreamsChart(streams);
+                
+            } catch (error) {
+                console.error('Dashboard error:', error);
+            }
+        }
+
+        function updateStreamsChart(streams) {
+            const ctx = document.getElementById('streamsChart').getContext('2d');
+            
+            // Destroy previous chart instance
+            if (streamsChart) {
+                streamsChart.destroy();
+            }
+
+            // Process category data
+            const categories = streams.reduce((acc, stream) => {
+                const category = stream.category || 'Uncategorized';
+                acc[category] = (acc[category] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Sort and limit to top 10 categories
+            const sortedCategories = Object.entries(categories)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            const chartData = {
+                labels: sortedCategories.map(c => c[0].length > 15 ? c[0].substring(0, 12) + '...' : c[0]),
+                datasets: [{
+                    data: sortedCategories.map(c => c[1]),
+                    backgroundColor: 'rgba(0, 195, 255, 0.2)',
+                    borderColor: 'rgba(0, 195, 255, 1)',
+                    borderWidth: 1,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.9
+                }]
+            };
+
+            streamsChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true },
+                        x: { ticks: { autoSkip: true, maxRotation: 45, minRotation: 45 } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Refresh button
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            loadDashboardData();
+        });
+
+        // Initial load
+        loadDashboardData();
+    </script>
+</body>
+</html>

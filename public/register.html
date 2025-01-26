@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - X-IPTV</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="register-container">
+        <h2><i class="fas fa-user-plus"></i> Register</h2>
+        <form id="registerForm">
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+            
+            <div class="password-hints">
+                <div>• 8+ characters</div>
+                <div>• 1 uppercase</div>
+                <div>• 1 lowercase</div>
+                <div>• 1 number</div>
+            </div>
+
+            <button type="submit">Register</button>
+        </form>
+        <p id="register-error" class="error-message"></p>
+        <p>Already have an account? <a href="/index.html">Login</a></p>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const errorElement = document.getElementById('register-error');
+            errorElement.textContent = "";
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+            
+            if (username.length < 4) {
+                errorElement.textContent = "Username must be at least 4 characters";
+                return;
+            }
+
+            if (!passwordRegex.test(password)) {
+                errorElement.textContent = "Password must meet all complexity requirements";
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorElement.textContent = "Passwords do not match";
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || "Registration failed");
+                }
+
+                alert("Registration successful! Redirecting to login...");
+                window.location.href = "/index.html";
+            } catch (error) {
+                errorElement.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+</html>

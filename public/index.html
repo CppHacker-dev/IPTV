@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - X-IPTV</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <main class="auth-container">
+        <h2 class="text-center">
+            <i class="fas fa-sign-in-alt"></i> 
+            IPTV Panel Login
+        </h2>
+        
+        <div class="alert alert-error" id="errorMessage"></div>
+
+        <form id="loginForm" novalidate>
+            <div class="input-group">
+                <input type="text" id="username" class="input-field" placeholder="Username" required>
+            </div>
+
+            <div class="input-group">
+                <input type="password" id="password" class="input-field" placeholder="Password" required>
+                <i class="fas fa-eye password-toggle" id="togglePassword"></i>
+            </div>
+
+            <button type="submit" class="btn btn-block" id="submitBtn">
+                <span id="btnText">Login</span>
+                <span class="loading" id="btnSpinner" hidden></span>
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <p class="text-muted">
+                Don't have an account? 
+                <a href="/register.html" class="text-accent">Register here</a>
+            </p>
+        </div>
+    </main>
+
+    <script>
+        // Password visibility toggle
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' 
+                ? 'text' 
+                : 'password';
+            passwordInput.setAttribute('type', type);
+            togglePassword.classList.toggle('fa-eye-slash');
+        });
+
+        // Form submission handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const errorElement = document.getElementById('errorMessage');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const btnSpinner = document.getElementById('btnSpinner');
+            
+            // Reset states
+            errorElement.style.display = 'none';
+            submitBtn.disabled = true;
+            btnText.hidden = true;
+            btnSpinner.hidden = false;
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ 
+                        username: username.toLowerCase(),
+                        password 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Login failed');
+                }
+
+                // Redirect on success
+                window.location.href = '/panel.html';
+                
+            } catch (error) {
+                errorElement.textContent = error.message;
+                errorElement.style.display = 'block';
+                console.error('Login error:', error);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.hidden = false;
+                btnSpinner.hidden = true;
+            }
+        });
+
+        // Input validation
+        document.getElementById('username').addEventListener('input', clearError);
+        document.getElementById('password').addEventListener('input', clearError);
+
+        function clearError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
